@@ -1,8 +1,13 @@
 export interface Loan {
-  id: number;
-  username: string;
-  fullName: string;
-  email: string;
-  password: string;
-  role: string;
+  id: string;
+  employeeId: string;
+  deviceId: string;
+  issuedAt: Date;
+  returnedAt: Date;
+  loanStatus: LoanStatusEnum;
+}
+
+export enum LoanStatusEnum {
+  ACTIVO = 'ACTIVO',
+  DEVUELTO = 'DEVUELTO',
 }

@@ -1,47 +1,63 @@
 import { Component, inject } from '@angular/core';
 import { Breakpoints, BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, CommonModule } from '@angular/common';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { CanvasJSAngularChartsModule } from '@canvasjs/angular-charts';
 
 @Component({
   selector: 'the-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   imports: [
-    AsyncPipe,
     MatGridListModule,
     MatMenuModule,
     MatIconModule,
     MatButtonModule,
-    MatCardModule
+    MatCardModule,
+    CommonModule,
+    CanvasJSAngularChartsModule,
   ]
 })
 export class DashboardComponent {
-  private breakpointObserver = inject(BreakpointObserver);
-
-  /** Based on the screen size, switch from standard to one column per row */
-  cards = this.breakpointObserver.observe(Breakpoints.Handset).pipe(
-    map(({ matches }) => {
-      if (matches) {
-        return [
-          { title: 'Card 1', cols: 1, rows: 1 },
-          { title: 'Card 2', cols: 1, rows: 1 },
-          { title: 'Card 3', cols: 1, rows: 1 },
-          { title: 'Card 4', cols: 1, rows: 1 }
-        ];
-      }
-
-      return [
-        { title: 'Card 1', cols: 2, rows: 1 },
-        { title: 'Card 2', cols: 1, rows: 1 },
-        { title: 'Card 3', cols: 1, rows: 2 },
-        { title: 'Card 4', cols: 1, rows: 1 }
-      ];
-    })
-  );
+  chartOptions = {
+	  animationEnabled: true,
+	  title: {
+	    text: "Equipos"
+	  },
+	  data: [{
+      type: "pie",
+      startAngle: -90,
+      indexLabel: "{name}: {y}",
+      yValueFormatString: "#,###.##'%'",
+      dataPoints: [
+        { y: 14.1, name: "Toys" },
+        { y: 28.2, name: "Electronics" },
+        { y: 14.4, name: "Groceries" },
+        { y: 43.3, name: "Furniture" }
+      ]
+	  }]
+	}
+  chartOptions2 = {
+	  animationEnabled: true,
+	  title: {
+	    text: "Prestamos"
+	  },
+	  data: [{
+      type: "pie",
+      startAngle: -90,
+      indexLabel: "{name}: {y}",
+      yValueFormatString: "#,###.##'%'",
+      dataPoints: [
+        { y: 14.1, name: "Toys" },
+        { y: 28.2, name: "Electronics" },
+        { y: 14.4, name: "Groceries" },
+        { y: 43.3, name: "Furniture" }
+      ]
+	  }]
+	}
 }

@@ -1,21 +1,62 @@
-.grid-container {
-  margin: 20px;
+.flex-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 32px;
+  padding-bottom: 40px; /* Un poco de aire al final */
 }
 
-.dashboard-card {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  right: 15px;
-  bottom: 15px;
+/* --- Estilos Tarjetas --- */
+.info {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+  padding: 20px;
 }
 
-.more-button {
-  position: absolute;
-  top: 5px;
-  right: 10px;
+.simple-card {
+  width: 300px; /* Cambiado de max-width a width para consistencia */
+  margin-bottom: 20px;
 }
 
-.dashboard-card-content {
+.big-number {
+  font-size: 3rem;
+  margin: 15px 0 0 0;
   text-align: center;
+  font-weight: bold;
+  color: #3f51b5;
+}
+
+/* --- Estilos Gráficos --- */
+.flex-container__charts {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap; /* Permite que bajen si no hay espacio */
+  justify-content: center; /* Centrados */
+  gap: 32px;
+  width: 100%;
+  padding: 0 20px;
+}
+
+/* El Wrapper controla el tamaño */
+.chart-wrapper {
+  /* Calculamos: 50% del ancho menos la mitad del gap (16px) */
+  /* Si la pantalla es pequeña, ocupará el 100% */
+  width: 100%;
+  max-width: 500px; /* Tope máximo para que no se vean gigantes */
+
+  overflow: hidden;
+  position: relative;
+  background: #fff; /* Opcional: fondo blanco si el gráfico es transparente */
+  border-radius: 8px; /* Opcional: bordes redondeados */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Opcional: sombra */
+}
+
+/* Responsive para escritorio: ponerlos lado a lado */
+@media (min-width: 900px) {
+  .chart-wrapper {
+    width: calc(50% - 32px);
+  }
 }

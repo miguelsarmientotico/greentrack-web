@@ -1,25 +1,55 @@
-<div class="grid-container">
-  <mat-grid-list cols="2" rowHeight="350px">
-    @for (card of cards | async; track card) {
-      <mat-grid-tile [colspan]="card.cols" [rowspan]="card.rows">
-        <mat-card class="dashboard-card">
-          <mat-card-header>
-            <mat-card-title>
-              {{card.title}}
-              <button matIconButton class="more-button" [matMenuTriggerFor]="menu" aria-label="Toggle menu">
-                <mat-icon>more_vert</mat-icon>
-              </button>
-              <mat-menu #menu="matMenu" xPosition="before">
-                <button mat-menu-item>Expand</button>
-                <button mat-menu-item>Remove</button>
-              </mat-menu>
-            </mat-card-title>
-          </mat-card-header>
-          <mat-card-content class="dashboard-card-content">
-            <div>Card Content Here</div>
-          </mat-card-content>
-        </mat-card>
-      </mat-grid-tile>
-    }
-  </mat-grid-list>
+<div class="flex-container">
+
+  <div class="info">
+    <mat-card class="simple-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="primary">group</mat-icon>
+        <mat-card-title>Total Usuarios</mat-card-title>
+        <mat-card-subtitle>Estadísticas generales</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <h1 class="big-number">100</h1>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="simple-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="primary">devices</mat-icon>
+        <mat-card-title>Total Equipos</mat-card-title>
+        <mat-card-subtitle>Estadísticas generales</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <h1 class="big-number">100</h1>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="simple-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar color="primary">assignment</mat-icon>
+        <mat-card-title>Total Préstamos</mat-card-title>
+        <mat-card-subtitle>Estadísticas generales</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <h1 class="big-number">100</h1>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="flex-container__charts">
+
+    <div class="chart-wrapper">
+      <canvasjs-chart
+        [options]="chartOptions"
+        [styles]="{width: '100%', height:'360px'}"> </canvasjs-chart>
+    </div>
+
+    <div class="chart-wrapper">
+      <canvasjs-chart
+        [options]="chartOptions2"
+        [styles]="{width: '100%', height:'360px'}">
+      </canvasjs-chart>
+    </div>
+
+  </div>
+
 </div>

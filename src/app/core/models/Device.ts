@@ -1,10 +1,20 @@
 export interface Device {
-  id: number;
-  username: string;
-  fullName: string;
-  email: string;
-  password: string;
-  role: string;
+  id: string;
+  name: string;
+  deviceType: DeviceTypeEnum;
+  brand: string;
+  deviceStatus: DeviceStatusEnum;
 }
 
+export enum DeviceTypeEnum {
+    LAPTOP = 'LAPTOP',
+    MONITOR = 'MONITOR',
+    TABLET = 'TABLET',
+    CELULAR = 'CELULAR'
+}
+
+export enum DeviceStatusEnum {
+    DISPONIBLE = 'DISPONIBLE',
+    PRESTADO = 'PRESTADO',
+}
 

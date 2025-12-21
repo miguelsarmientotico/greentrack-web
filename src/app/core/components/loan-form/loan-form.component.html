@@ -1,0 +1,99 @@
+<div class="stepper-container">
+  <h2>Nuevo Préstamo de Equipo</h2>
+
+  <mat-stepper [linear]="true" #stepper>
+
+    <mat-step [stepControl]="userFormGroup">
+      <ng-template matStepLabel>Seleccionar Empleado</ng-template>
+
+      <div class="grid-wrapper">
+        <p class="instruction-text">Seleccione el empleado que recibe el equipo:</p>
+
+        <ag-grid-angular
+          style="width: 100%; height: 400px;"
+          class="ag-theme-quartz"
+          [rowData]="userRowData"
+          [columnDefs]="userColDefs"
+          rowSelection="single"
+          (selectionChanged)="onUserSelectionChanged($event)"
+        >
+        </ag-grid-angular>
+
+        <mat-paginator
+          [length]="totalUsers"
+          [pageSize]="userPageSize"
+          [pageSizeOptions]="[5, 10, 25]"
+          (page)="onUserPageChange($event)">
+        </mat-paginator>
+      </div>
+
+      <div class="stepper-buttons">
+        <button mat-button matStepperNext [disabled]="userFormGroup.invalid" color="primary">
+          Siguiente
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step [stepControl]="deviceFormGroup">
+      <ng-template matStepLabel>Seleccionar Equipo</ng-template>
+
+      <div class="grid-wrapper">
+        <p class="instruction-text">Seleccione el equipo a prestar:</p>
+
+        <ag-grid-angular
+          style="width: 100%; height: 400px;"
+          class="ag-theme-quartz"
+          [rowData]="deviceRowData"
+          [columnDefs]="deviceColDefs"
+          rowSelection="single"
+          (selectionChanged)="onDeviceSelectionChanged($event)"
+        >
+        </ag-grid-angular>
+
+        <mat-paginator
+          [length]="totalDevices"
+          [pageSize]="devicePageSize"
+          [pageSizeOptions]="[5, 10, 25]"
+          (page)="onDevicePageChange($event)">
+        </mat-paginator>
+      </div>
+
+      <div class="stepper-buttons">
+        <button mat-button matStepperPrevious>Atrás</button>
+        <button mat-button matStepperNext [disabled]="deviceFormGroup.invalid" color="primary">
+          Siguiente
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step>
+      <ng-template matStepLabel>Confirmar Préstamo</ng-template>
+
+      <div class="summary-container" *ngIf="selectedUser && selectedDevice">
+        <h3>Resumen del Préstamo</h3>
+
+        <div class="summary-card">
+          <div class="summary-item">
+            <span class="label">Empleado:</span>
+            <span class="value">{{ selectedUser.fullName }}</span>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="summary-item">
+            <span class="label">Equipo a entregar:</span>
+            <span class="value">{{ selectedDevice.name }}</span>
+          </div>
+        </div>
+
+        <div class="stepper-buttons confirm-buttons">
+          <button mat-button matStepperPrevious>Atrás</button>
+          <button mat-raised-button color="primary" (click)="crearPrestamo()">
+            <mat-icon>save</mat-icon> Confirmar Préstamo
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+  </mat-stepper>
+</div>
