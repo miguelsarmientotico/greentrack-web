@@ -44,15 +44,15 @@ export class DeviceService {
     return this.http.patch<Device>(`${this.devicesUrl}/${id}`, {
       ...deviceData
     }).pipe(
-      map(device => {
-        const index = this.devices.findIndex(p => p.id === id);
-        this.devices[index] = {
+        map(device => {
+          const index = this.devices.findIndex(p => p.id === id);
+          this.devices[index] = {
             ...this.devices[index],
             ...deviceData
-        }
-        return device;
-      })
-    );
+          }
+          return device;
+        })
+      );
   }
 
   deleteDevice(id: string): Observable<void> {

@@ -10,6 +10,4 @@ import { MatDividerModule } from '@angular/material/divider';
   templateUrl: './users.html',
   styleUrl: './users.scss',
 })
-export class Users {
-
-}
+export class Users {}

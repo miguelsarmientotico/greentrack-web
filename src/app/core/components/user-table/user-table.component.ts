@@ -254,12 +254,12 @@ export class UserTableComponent implements OnInit {
     this.userService.updateUser(this.selectedUser.id, {
       password: newPass
     }).subscribe({
-      next: (res) => console.log('Actualizado OK'),
-      error: (err) => {
-        console.error('Error al actualizar', err);
-        // Opcional: Revertir cambio en la grilla si falla
-      }
-    });
+        next: (res) => console.log('Actualizado OK'),
+        error: (err) => {
+          console.error('Error al actualizar', err);
+          // Opcional: Revertir cambio en la grilla si falla
+        }
+      });
 
     this.activeDialogRef?.close();
     this.selectedUser = null;

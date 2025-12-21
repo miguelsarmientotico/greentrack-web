@@ -46,15 +46,15 @@ export class UserService {
     return this.http.patch<User>(`${this.usersUrl}/${id}`, {
       ...userData
     }).pipe(
-      map(user => {
-        const index = this.users.findIndex(p => p.id === id);
-        this.users[index] = {
+        map(user => {
+          const index = this.users.findIndex(p => p.id === id);
+          this.users[index] = {
             ...this.users[index],
             ...userData
-        }
-        return user;
-      })
-    );
+          }
+          return user;
+        })
+      );
   }
 
   deleteUser(id: string): Observable<void> {

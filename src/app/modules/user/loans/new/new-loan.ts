@@ -10,6 +10,4 @@ import { LoanFormComponent } from '../../../../core/components/loan-form/loan-fo
   templateUrl: './new-loan.html',
   styleUrl: './new-loan.scss',
 })
-export class NewLoan {
-
-}
+export class NewLoan {}

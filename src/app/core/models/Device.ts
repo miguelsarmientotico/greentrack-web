@@ -7,14 +7,14 @@ export interface Device {
 }
 
 export enum DeviceTypeEnum {
-    LAPTOP = 'LAPTOP',
-    MONITOR = 'MONITOR',
-    TABLET = 'TABLET',
-    CELULAR = 'CELULAR'
+  LAPTOP = 'LAPTOP',
+  MONITOR = 'MONITOR',
+  TABLET = 'TABLET',
+  CELULAR = 'CELULAR'
 }
 
 export enum DeviceStatusEnum {
-    DISPONIBLE = 'DISPONIBLE',
-    PRESTADO = 'PRESTADO',
+  DISPONIBLE = 'DISPONIBLE',
+  PRESTADO = 'PRESTADO',
 }
 

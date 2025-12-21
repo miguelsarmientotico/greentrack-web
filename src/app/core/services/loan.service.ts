@@ -44,15 +44,15 @@ export class LoanService {
     return this.http.patch<Loan>(`${this.loansUrl}/${id}`, {
       ...loanData
     }).pipe(
-      map(loan => {
-        const index = this.loans.findIndex(p => p.id === id);
-        this.loans[index] = {
+        map(loan => {
+          const index = this.loans.findIndex(p => p.id === id);
+          this.loans[index] = {
             ...this.loans[index],
             ...loanData
-        }
-        return loan;
-      })
-    );
+          }
+          return loan;
+        })
+      );
   }
 
   deleteLoan(id: string): Observable<void> {
