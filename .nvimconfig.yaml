@@ -1,0 +1,6 @@
+active_lsp_servers:
+  - angular
+active_dap_servers:
+  - angular
+active_linters:
+active_formatters:

@@ -1,0 +1,157 @@
+/* --- ESTRUCTURA --- */
+.sidenav-container {
+  height: 100%;
+  background-color: #f9fafb; /* Fondo general gris muy pálido (casi blanco) */
+}
+
+/* --- SIDENAV (BARRA LATERAL) --- */
+.sidenav-minimal {
+  width: 240px;
+  background-color: #ffffff; /* Sidenav completamente blanco */
+  border-right: 1px solid rgba(0,0,0,0.04); /* Línea divisoria casi invisible */
+
+  /* Quitamos la sombra por defecto de Material para hacerlo plano */
+  box-shadow: none !important;
+}
+
+.brand-header {
+  height: 64px; /* Misma altura que la toolbar */
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+  gap: 12px;
+
+  /* Tipografía */
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.5px;
+  color: #111827; /* Negro suave */
+
+  mat-icon {
+    color: var(--mat-sys-primary); /* El único toque de color es el logo */
+  }
+}
+
+/* --- LISTA DE NAVEGACIÓN --- */
+.nav-list {
+  padding: 12px !important;
+}
+
+.mat-mdc-list-item {
+  margin-bottom: 4px;
+  border-radius: 8px !important; /* Bordes suaves */
+  color: #6b7280; /* Texto gris medio (no negro) */
+
+  /* Iconos grises */
+  .mat-icon {
+    color: #9ca3af;
+    margin-right: 12px;
+  }
+
+  /* Hover sutil */
+  &:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+  }
+
+  /* --- ESTADO ACTIVO (SELECTED) --- */
+  &.selected {
+    background-color: #f3f4f6; /* Fondo gris muy suave */
+    color: #111827; /* Texto negro fuerte */
+    font-weight: 500;
+
+    .mat-icon {
+      color: #111827; /* Icono negro fuerte */
+    }
+  }
+}
+
+/* --- ÁREA DE CONTENIDO --- */
+.content-wrapper {
+  background-color: #f9fafb; /* Fondo diferenciado del menú blanco */
+}
+
+.toolbar-minimal {
+  background-color: #ffffff; /* Sidenav completamente blanco */
+  color: #111827;
+  /* Opcional: border-bottom: 1px solid rgba(0,0,0,0.04); */
+  &.desktop {
+    justify-content: flex-end;
+  }
+  &.mobile {
+    justify-content: space-between;
+  }
+}
+
+
+.page-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.main-content {
+  /* 1. Centrado Horizontal Mágico */
+  margin-left: auto;
+  margin-right: auto;
+
+  /* 2. Comportamiento Básico */
+  width: 100%;
+  box-sizing: border-box; /* Vital para que el padding no rompa el ancho */
+
+  /* 3. Transición suave al cambiar tamaño de ventana */
+  transition: max-width 0.3s ease, padding 0.3s ease;
+
+  /* --- BREAKPOINTS (Puntos de quiebre) --- */
+
+  /* NIVEL 1: Móviles (Base) */
+  /* < 600px */
+  padding: 16px;
+  max-width: 100%;
+
+  /* NIVEL 2: Tablets (Portrait) */
+  /* >= 600px */
+  @media (min-width: 600px) {
+    padding: 24px;
+    /* En tablets seguimos usando casi todo el ancho */
+    max-width: 100%;
+  }
+
+  /* NIVEL 3: Tablets (Landscape) y Laptops Pequeñas */
+  /* >= 960px */
+  @media (min-width: 960px) {
+    padding: 32px;
+    /* Aquí empezamos a restringir el ancho para que se vea elegante */
+    max-width: 900px;
+  }
+
+  /* NIVEL 4: Desktop Estándar */
+  /* >= 1280px */
+  @media (min-width: 1280px) {
+    max-width: 1152px; /* Un ancho estándar muy cómodo (estilo Grid 12 col) */
+  }
+
+  /* NIVEL 5: Monitores Wide / 4K (Opcional) */
+  /* >= 1600px */
+  @media (min-width: 1600px) {
+    max-width: 1400px; /* Dejamos que respire un poco más */
+  }
+}
+
+.footer-copyright {
+  width: 100%;
+  margin-top: auto; /* Doble seguridad para el efecto sticky */
+  padding: 20px 0;  /* Un poco de aire arriba y abajo */
+
+  /* Estética */
+  text-align: center; /* Texto centrado se ve mejor cuando es poco */
+  font-size: 12px;
+  color: #9ca3af;     /* Gris suave discreto */
+
+  /* Opcional: Una línea muy sutil arriba */
+  border-top: 1px solid rgba(0,0,0,0.03);
+}
+
+.shadow-bottom {
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}

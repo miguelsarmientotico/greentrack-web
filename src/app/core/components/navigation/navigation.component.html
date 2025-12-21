@@ -1,0 +1,68 @@
+<mat-sidenav-container class="sidenav-container">
+
+  <mat-sidenav #drawer class="sidenav-minimal" fixedInViewport
+      [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
+      [mode]="(isHandset$ | async) ? 'over' : 'side'"
+      [opened]="(isHandset$ | async) === false">
+
+    <div class="brand-header">
+      <mat-icon>eco</mat-icon>
+      <span class="brand-text">GreenTrack</span>
+    </div>
+
+    <mat-nav-list class="nav-list">
+      <a
+        mat-list-item routerLink="/u"
+        routerLinkActive="selected"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <mat-icon matListItemIcon>dashboard</mat-icon>
+        <span matListItemTitle>Dashboard</span>
+      </a>
+      <a mat-list-item routerLink="/u/loans" routerLinkActive="selected">
+        <mat-icon matListItemIcon>monetization_on</mat-icon>
+        <span matListItemTitle>Préstamos</span>
+      </a>
+      <a mat-list-item routerLink="/u/devices" routerLinkActive="selected">
+        <mat-icon matListItemIcon>devices</mat-icon>
+        <span matListItemTitle>Equipos</span>
+      </a>
+      <a mat-list-item routerLink="/u/users" routerLinkActive="selected">
+        <mat-icon matListItemIcon>group</mat-icon>
+        <span matListItemTitle>Usuarios</span>
+      </a>
+    </mat-nav-list>
+
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content-wrapper">
+
+    <mat-toolbar
+      class="toolbar-minimal shadow-bottom"
+      [class.mobile]="isHandset$ | async"
+      [class.desktop]="(isHandset$ | async) === false"
+    >
+      @if (isHandset$ | async) {
+        <button mat-icon-button (click)="drawer.toggle()">
+          <mat-icon>menu</mat-icon>
+        </button>
+      }
+      <div class="toolbar-actions-minimal">
+        <button mat-icon-button class="icon-button">
+          <mat-icon>search</mat-icon>
+        </button>
+        <button mat-icon-button class="icon-button">
+          <mat-icon>settings</mat-icon>
+        </button>
+      </div>
+    </mat-toolbar>
+
+    <main class="main-content">
+      <router-outlet />
+    </main>
+    <footer class="footer-copyright">
+      <p>© 2025 GreenTrack. Todos los derechos reservados.</p>
+    </footer>
+
+  </mat-sidenav-content>
+</mat-sidenav-container>

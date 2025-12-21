@@ -1,0 +1,111 @@
+<div class="container">
+  <div class="options-bar">
+    <h2>Gestión de Usuarios</h2>
+    <button mat-raised-button color="primary" (click)="abrirModalCreacion()">
+      <mat-icon>add</mat-icon> Nuevo Usuario
+    </button>
+  </div>
+
+  <ag-grid-angular
+    style="width: 100%; height: 500px; margin-top: 15px;"
+    class="ag-theme-quartz"
+    [rowData]="rowData"
+    [columnDefs]="colDefs"
+    [defaultColDef]="defaultColDef"
+    (gridReady)="onGridReady($event)"
+    (cellValueChanged)="onCellValueChanged($event)"
+  >
+  </ag-grid-angular>
+  <mat-paginator
+    [length]="totalUsers"
+    [pageSize]="pageSize"
+    [pageSizeOptions]="[5, 10, 25, 100]"
+    [showFirstLastButtons]="true"
+    (page)="onPageChange($event)"
+    aria-label="Seleccionar página">
+  </mat-paginator>
+</div>
+
+<ng-template #createUserDialog>
+  <h2 mat-dialog-title>Crear Nuevo Usuario</h2>
+  <mat-dialog-content>
+    <form [formGroup]="userForm" class="dialog-form">
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Username</mat-label>
+        <input matInput formControlName="username">
+        <mat-error *ngIf="userForm.get('username')?.hasError('required')">Requerido</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Contraseña</mat-label>
+        <input matInput type="password" formControlName="password">
+        <mat-error *ngIf="userForm.get('password')?.hasError('minlength')">Mínimo 6 caracteres</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Nombre Completo</mat-label>
+        <input matInput formControlName="fullName">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email">
+        <mat-error *ngIf="userForm.get('email')?.hasError('email')">Email inválido</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Rol</mat-label>
+        <mat-select formControlName="role">
+          <mat-option *ngFor="let r of rolesList" [value]="r">{{ r }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="cerrarDialogo()">Cancelar</button>
+    <button mat-raised-button color="primary" [disabled]="userForm.invalid" (click)="guardarNuevoUsuario()">
+      Guardar
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<ng-template #deleteConfirmDialog>
+  <h2 mat-dialog-title>Eliminar Usuario</h2>
+  <mat-dialog-content>
+    <p>¿Estás seguro que deseas eliminar al usuario <strong>{{ selectedUser?.username }}</strong>?</p>
+    <p class="warning-text">Esta acción no se puede deshacer.</p>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="cerrarDialogo()">Cancelar</button>
+    <button mat-raised-button color="warn" (click)="procederEliminacion()">
+      Sí, Eliminar
+    </button>
+  </mat-dialog-actions>
+</ng-template>
+
+<ng-template #resetPassDialog>
+  <h2 mat-dialog-title>Cambiar Contraseña</h2>
+  <mat-dialog-content>
+    <p>Ingresa la nueva contraseña para <strong>{{ selectedUser?.username }}</strong>:</p>
+
+    <form [formGroup]="resetPassForm" class="dialog-form">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Nueva Contraseña</mat-label>
+        <input matInput type="password" formControlName="newPassword">
+        <mat-error *ngIf="resetPassForm.get('newPassword')?.hasError('minlength')">
+          Mínimo 6 caracteres
+        </mat-error>
+      </mat-form-field>
+    </form>
+
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="cerrarDialogo()">Cancelar</button>
+    <button mat-raised-button color="accent" [disabled]="resetPassForm.invalid" (click)="guardarNuevaPassword()">
+      Cambiar Contraseña
+    </button>
+  </mat-dialog-actions>
+</ng-template>
