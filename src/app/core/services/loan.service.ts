@@ -64,6 +64,18 @@ export class LoanService {
     );
   }
 
+  returnLoan(id: string): Observable<Loan> {
+    return this.http.patch<Loan>(`${this.loansUrl}/${id}/return`, {}).pipe(
+      tap(() => {
+        const index = this.loans.findIndex(p => p.id === id);
+        this.loans[index] = {
+          ...this.loans[index],
+          loanStatus: LoanStatusEnum.DEVUELTO
+        }
+      }),
+    );
+  }
+
   private handleError(error: HttpErrorResponse) {
     let message = '';
 

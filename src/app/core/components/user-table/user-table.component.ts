@@ -108,12 +108,12 @@ export class UserTableComponent implements OnInit {
   constructor(
     private userService: UserService,
     private fb: FormBuilder,
-    private dialog: MatDialog // Inyección del servicio de Material Dialog
+    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
     this.loadElements();
-    // Formulario de Creación
+
     this.userForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(6)]],
@@ -122,7 +122,6 @@ export class UserTableComponent implements OnInit {
       role: [RoleEnum.USER, Validators.required],
     });
 
-    // Formulario para Reset Password (solo un campo)
     this.resetPassForm = this.fb.group({
       newPassword: ['', [Validators.required, Validators.minLength(6)]]
     });
@@ -139,7 +138,6 @@ export class UserTableComponent implements OnInit {
     });
   }
 
-
   onGridReady(params: GridReadyEvent<User>) {
     this.gridApi = params.api;
   }
@@ -150,18 +148,14 @@ export class UserTableComponent implements OnInit {
     }
   }
 
-  // --- UPDATE (Edición en línea) ---
   onCellValueChanged(event: CellValueChangedEvent) {
     const id = event.data.id;
 
-    // 1. Obtenemos el nombre del campo que se editó (ej: "price", "name", "email")
     const campoEditado = event.colDef.field;
     const nuevoValor = event.newValue;
 
-    if (!campoEditado) return; // Seguridad por si acaso
+    if (!campoEditado) return;
 
-    // 2. CREAMOS EL OBJETO DINÁMICO
-    // Usamos los corchetes [] para que la clave sea el valor de la variable
     const cambios: Partial<User> = {
       [campoEditado]: nuevoValor
     };
@@ -170,12 +164,11 @@ export class UserTableComponent implements OnInit {
       next: (res) => console.log('Actualizado OK'),
       error: (err) => {
         console.error('Error al actualizar', err);
-        // Opcional: Revertir cambio en la grilla si falla
+
       }
     });
   }
 
-  // --- CREATE (Nuevo Usuario) ---
   abrirModalCreacion() {
     this.activeDialogRef = this.dialog.open(this.createUserDialog, {
       width: '500px',
@@ -187,14 +180,13 @@ export class UserTableComponent implements OnInit {
     if (this.userForm.invalid) return;
 
     const formData = this.userForm.value;
-    const payloadParaBackend = { ...formData }; // ID null
+    const payloadParaBackend = { ...formData };
 
     console.log('🚀 CREATE: Enviando al backend:', payloadParaBackend);
 
     this.userService.addUser(payloadParaBackend).subscribe({
       next: (usuarioCreado) => {
-        // Ag-Grid: Agregar la fila visualmente con los datos reales del back
-        //this.gridApi.applyTransaction({ add: [usuarioCreado] });
+
         this.gridApi.applyTransaction({ add: [usuarioCreado] });
         this.activeDialogRef?.close();
       },
@@ -202,13 +194,12 @@ export class UserTableComponent implements OnInit {
     });
 
     this.activeDialogRef?.close();
-    // ---------------------------------------------------
+
   }
 
-  // --- DELETE (Eliminar Usuario) ---
   confirmarEliminacion(user: User) {
     this.selectedUser = user;
-    // Abrimos el template de confirmación
+
     this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, {
       width: '400px'
     });
@@ -224,21 +215,19 @@ export class UserTableComponent implements OnInit {
         this.gridApi.applyTransaction({ remove: [this.selectedUser!] });
         this.activeDialogRef?.close();
         this.selectedUser = null;
+        this.activeDialogRef?.close();
+        this.selectedUser = null;
       },
       error: (err) => console.error('Error eliminando', err)
     });
 
-    this.activeDialogRef?.close();
-    this.selectedUser = null;
-    // ------------------
+
   }
 
-  // --- RESET PASSWORD (Cambio de contraseña) ---
   abrirModalResetPassword(user: User) {
     this.selectedUser = user;
     this.resetPassForm.reset();
 
-    // Abrimos el template de reset password
     this.activeDialogRef = this.dialog.open(this.resetPassDialog, {
       width: '400px'
     });
@@ -257,7 +246,7 @@ export class UserTableComponent implements OnInit {
         next: (res) => console.log('Actualizado OK'),
         error: (err) => {
           console.error('Error al actualizar', err);
-          // Opcional: Revertir cambio en la grilla si falla
+
         }
       });
 

@@ -1,19 +1,22 @@
 import { Component } from '@angular/core';
 import { ICellRendererAngularComp } from 'ag-grid-angular';
 import { ICellRendererParams } from 'ag-grid-community';
+import { LoanStatusEnum } from '../../models/Loan';
 
 @Component({
   selector: 'app-btn-cell-renderer',
   standalone: true,
   template: `
-    <div class="btn-container">
+    @if (showReturnButton) {
       <button
-        (click)="onDelete()"
-        class="btn btn-delete"
-        title="Eliminar Usuario">
-        🗑️
+        (click)="onReturn()"
+        class="btn-devolver"
+        title="Procesar Devolución">
+        Devolver
       </button>
-    </div>
+    } @else {
+      <span>✅</span>
+    }
   `,
   styles: [`
     .btn-container {
@@ -54,14 +57,31 @@ import { ICellRendererParams } from 'ag-grid-community';
 })
 export class BtnCellRenderer implements ICellRendererAngularComp {
   private params: any;
+  public showReturnButton = true; // Por defecto true
 
   agInit(params: ICellRendererParams): void {
     this.params = params;
+    this.updateVisibility();
   }
 
   refresh(params: ICellRendererParams): boolean {
     this.params = params;
+    this.updateVisibility();
     return true;
+  }
+
+  private updateVisibility() {
+    if (this.params.data.loanStatus === LoanStatusEnum.DEVUELTO) {
+      this.showReturnButton = false;
+    } else {
+      this.showReturnButton = true;
+    }
+  }
+
+  onReturn() {
+    if (this.params.onReturnClicked) {
+      this.params.onReturnClicked(this.params.data);
+    }
   }
 
   onDelete() {

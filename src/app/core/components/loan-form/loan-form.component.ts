@@ -1,8 +1,8 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, inject, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ColDef, GridApi, GridReadyEvent, SelectionChangedEvent } from 'ag-grid-community';
 import { User } from '../../models/User';
-import { Device } from '../../models/Device'; // Ajusta tus imports
+import { Device } from '../../models/Device';
 import { UserService } from '../../services/user.service';
 import { DeviceService } from '../../services/device.service';
 import { LoanService } from '../../services/loan.service';
@@ -14,7 +14,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
-// Importa tus servicios (UserService, DeviceService, LoanService)
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-loan-form',
@@ -25,34 +25,33 @@ import { Router } from '@angular/router';
     MatPaginatorModule,
     MatDividerModule,
     MatIconModule,
-    MatButtonModule
+    MatButtonModule,
+    MatSnackBarModule
   ],
   templateUrl: './loan-form.component.html',
   styleUrls: ['./loan-form.component.scss']
 })
 export class LoanFormComponent implements OnInit {
 
-  // Stepper Forms
+  snackBar = inject(MatSnackBar);
+
   userFormGroup!: FormGroup;
   deviceFormGroup!: FormGroup;
 
-  // Datos seleccionados (Para mostrar en el resumen)
   selectedUser: { id: string, fullName: string } | null = null;
   selectedDevice: { id: string, name: string } | null = null;
 
-  // --- Configuración Tabla Usuarios ---
   userRowData: User[] = [];
   totalUsers = 0;
   userPageSize = 10;
   userCurrentPage = 0;
 
   userColDefs: ColDef[] = [
-    // Agregamos checkbox y quitamos edición/acciones para selección limpia
     {
       headerName: '',
       checkboxSelection: true,
       width: 50,
-      headerCheckboxSelection: false // False porque solo queremos elegir 1
+      headerCheckboxSelection: false
     },
     { field: 'id', hide: true },
     { field: 'username', headerName: 'Usuario', flex: 1 },
@@ -61,7 +60,6 @@ export class LoanFormComponent implements OnInit {
     { field: 'role', headerName: 'Rol', width: 120 }
   ];
 
-  // --- Configuración Tabla Dispositivos ---
   deviceRowData: Device[] = [];
   totalDevices = 0;
   devicePageSize = 10;
@@ -89,21 +87,16 @@ export class LoanFormComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Inicializamos los formularios.
-    // El 'ctrl' es un control dummy que llenaremos cuando seleccionen algo en la tabla
     this.userFormGroup = this._formBuilder.group({
       selectedUserId: ['', Validators.required]
     });
     this.deviceFormGroup = this._formBuilder.group({
       selectedDeviceId: ['', Validators.required]
     });
-
-    // Cargar datos iniciales
     this.loadUsers();
     this.loadDevices();
   }
 
-  // --- Lógica Usuarios ---
   loadUsers() {
     this.userService.getUsers(this.userCurrentPage, this.userPageSize).subscribe(res => {
       this.userRowData = res.content;
@@ -115,9 +108,7 @@ export class LoanFormComponent implements OnInit {
     const selectedRows = event.api.getSelectedRows();
     if (selectedRows.length > 0) {
       const user = selectedRows[0];
-      // Guardamos datos para el resumen
       this.selectedUser = { id: user.id, fullName: user.fullName };
-      // Actualizamos el formulario para permitir avanzar el Stepper
       this.userFormGroup.patchValue({ selectedUserId: user.id });
     } else {
       this.selectedUser = null;
@@ -131,9 +122,7 @@ export class LoanFormComponent implements OnInit {
     this.loadUsers();
   }
 
-  // --- Lógica Dispositivos ---
   loadDevices() {
-    // Aquí podrías filtrar solo dispositivos 'DISPONIBLE' si quisieras
     this.deviceService.getDevices(this.deviceCurrentPage, this.devicePageSize).subscribe(res => {
       this.deviceRowData = res.content;
       this.totalDevices = res.totalElements;
@@ -158,7 +147,6 @@ export class LoanFormComponent implements OnInit {
     this.loadDevices();
   }
 
-  // --- Paso Final: Crear Préstamo ---
   crearPrestamo() {
     if(!this.selectedUser || !this.selectedDevice) return;
 
@@ -171,6 +159,10 @@ export class LoanFormComponent implements OnInit {
 
     this.loanService.addLoan(loanPayload).subscribe({
       next: () => {
+        this.snackBar.open('Prestamo Creado', 'Cerrar', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
         this.router.navigate(['/u/loans']);
       },
       error: (err) => console.error('Error creando usuario', err)

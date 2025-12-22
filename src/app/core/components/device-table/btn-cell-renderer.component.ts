@@ -11,7 +11,7 @@ import { ICellRendererParams } from 'ag-grid-community';
         (click)="onDelete()"
         class="btn btn-delete"
         title="Eliminar Usuario">
-        🗑️
+        Delete
       </button>
     </div>
   `,

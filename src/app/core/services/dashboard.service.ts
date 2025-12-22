@@ -8,7 +8,7 @@ import { DashboardSummary } from '../models/Dashboard';
   providedIn: 'root'
 })
 export class DashboardService {
-  // Asegúrate de que APP_SETTINGS esté bien configurado en tu app
+
   private dashboardUrl = inject(APP_SETTINGS).apiUrl + '/dashboard';
 
   constructor(private http: HttpClient) { }

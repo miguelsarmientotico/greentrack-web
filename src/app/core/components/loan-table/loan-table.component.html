@@ -14,6 +14,7 @@
     [defaultColDef]="defaultColDef"
     (gridReady)="onGridReady($event)"
     (cellValueChanged)="onCellValueChanged($event)"
+    [getRowId]="getRowId"
   >
   </ag-grid-angular>
   <mat-paginator
@@ -54,6 +55,19 @@
   </mat-dialog-actions>
 </ng-template>
 
+<ng-template #returnConfirmDialog>
+  <h2 mat-dialog-title>Devolver Equipo</h2>
+  <mat-dialog-content>
+    <p>¿Estás seguro que deseas eliminar el prestamo ?</p>
+    <p class="warning-text">Esta acción no se puede deshacer.</p>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="cerrarDialogo()">Cancelar</button>
+    <button mat-raised-button color="warn" (click)="procederDevolucion()">
+      Sí, Devolver
+    </button>
+  </mat-dialog-actions>
+</ng-template>
 <ng-template #deleteConfirmDialog>
   <h2 mat-dialog-title>Eliminar Usuario</h2>
   <mat-dialog-content>

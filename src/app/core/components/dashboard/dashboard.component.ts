@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core'; // Agrega OnInit
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -13,7 +13,7 @@ import { DashboardSummary } from '../../models/Dashboard';
   selector: 'the-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
-  standalone: true, // Asumo que es standalone por los imports
+  standalone: true,
   imports: [
     MatGridListModule,
     MatMenuModule,
@@ -26,15 +26,12 @@ import { DashboardSummary } from '../../models/Dashboard';
 })
 export class DashboardComponent implements OnInit {
 
-  // 1. Variable para almacenar los datos de las tarjetas (Texto)
-  // Inicializamos en 0 para evitar errores en el HTML al inicio
   stats: DashboardSummary = {
     users: { total: 0 },
     devices: { total: 0, available: 0, borrowed: 0 },
     loans: { total: 0, active: 0, returned: 0 }
   };
 
-  // 2. Opciones Base para Gráfico 1 (Equipos)
   chartOptions: any = {
     animationEnabled: true,
     theme: "light2",
@@ -44,11 +41,10 @@ export class DashboardComponent implements OnInit {
       startAngle: -90,
       indexLabel: "{name}: {y}",
       yValueFormatString: "#,###",
-      dataPoints: [] // Empieza vacío
+      dataPoints: []
     }]
   };
 
-  // 3. Opciones Base para Gráfico 2 (Préstamos)
   chartOptions2: any = {
     animationEnabled: true,
     theme: "light2",
@@ -58,7 +54,7 @@ export class DashboardComponent implements OnInit {
       startAngle: -90,
       indexLabel: "{name}: {y}",
       yValueFormatString: "#,###",
-      dataPoints: [] // Empieza vacío
+      dataPoints: []
     }]
   };
 
@@ -71,30 +67,24 @@ export class DashboardComponent implements OnInit {
   loadDashboardData() {
     this.dashboardService.getDashboardSummary().subscribe({
       next: (data: DashboardSummary) => {
-        // A. Guardamos los datos para las tarjetas numéricas
         this.stats = data;
-
-        // B. Actualizamos Gráfico 1: Equipos (Disponibles vs Prestados)
-        // Creamos un NUEVO objeto para forzar la actualización del gráfico
         this.chartOptions = {
           ...this.chartOptions,
           data: [{
             ...this.chartOptions.data[0],
             dataPoints: [
-              { y: data.devices.available, name: "Disponibles", color: "#4caf50" }, // Verde
-              { y: data.devices.borrowed, name: "Prestados", color: "#f44336" }    // Rojo
+              { y: data.devices.available, name: "Disponibles", color: "#4caf50" },
+              { y: data.devices.borrowed, name: "Prestados", color: "#f44336" }
             ]
           }]
         };
-
-        // C. Actualizamos Gráfico 2: Préstamos (Activos vs Devueltos)
         this.chartOptions2 = {
           ...this.chartOptions2,
           data: [{
             ...this.chartOptions2.data[0],
             dataPoints: [
-              { y: data.loans.active, name: "Activos", color: "#ff9800" },   // Naranja
-              { y: data.loans.returned, name: "Devueltos", color: "#2196f3" } // Azul
+              { y: data.loans.active, name: "Activos", color: "#ff9800" },
+              { y: data.loans.returned, name: "Devueltos", color: "#2196f3" }
             ]
           }]
         };

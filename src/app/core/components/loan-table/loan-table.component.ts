@@ -1,9 +1,9 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
 import { BtnCellRenderer } from './btn-cell-renderer.component';
 
 import { Loan, LoanStatusEnum } from '../../models/Loan';
@@ -19,6 +19,7 @@ import { Subscription } from 'rxjs';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Pagination } from '../../models/Pagination';
 import { RouterModule } from '@angular/router';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-loan-table',
@@ -34,15 +35,19 @@ import { RouterModule } from '@angular/router';
     MatSelectModule,
     MatIconModule,
     MatPaginatorModule,
-    RouterModule
+    RouterModule,
+    MatSnackBarModule
   ],
   templateUrl: './loan-table.component.html',
   styleUrls: ['./loan-table.component.scss']
 })
 export class LoanTableComponent implements OnInit {
 
+  snackBar = inject(MatSnackBar);
+
   @ViewChild('createLoanDialog') createLoanDialog!: TemplateRef<any>;
   @ViewChild('deleteConfirmDialog') deleteConfirmDialog!: TemplateRef<any>;
+  @ViewChild('returnConfirmDialog') returnConfirmDialog!: TemplateRef<any>;
 
   totalLoans = 0;
   pageSize = 10;
@@ -75,7 +80,7 @@ export class LoanTableComponent implements OnInit {
       cellRenderer: BtnCellRenderer,
       width: 140,
       cellRendererParams: {
-        onDeleteClicked: (loan: Loan) => this.confirmarEliminacion(loan),
+        onReturnClicked: (loan: Loan) => this.confirmarDevolucion(loan),
       },
       pinned: 'right',
       filter: false,
@@ -116,7 +121,6 @@ export class LoanTableComponent implements OnInit {
     });
   }
 
-
   onGridReady(params: GridReadyEvent<Loan>) {
     this.gridApi = params.api;
   }
@@ -127,32 +131,22 @@ export class LoanTableComponent implements OnInit {
     }
   }
 
-  // --- UPDATE (Edición en línea) ---
   onCellValueChanged(event: CellValueChangedEvent) {
     const id = event.data.id;
-
-    // 1. Obtenemos el nombre del campo que se editó (ej: "price", "name", "email")
     const campoEditado = event.colDef.field;
     const nuevoValor = event.newValue;
-
-    if (!campoEditado) return; // Seguridad por si acaso
-
-    // 2. CREAMOS EL OBJETO DINÁMICO
-    // Usamos los corchetes [] para que la clave sea el valor de la variable
+    if (!campoEditado) return;
     const cambios: Partial<Loan> = {
       [campoEditado]: nuevoValor
     };
-
     this.loanService.updateLoan(id, cambios).subscribe({
       next: (res) => console.log('Actualizado OK'),
       error: (err) => {
         console.error('Error al actualizar', err);
-        // Opcional: Revertir cambio en la grilla si falla
       }
     });
   }
 
-  // --- CREATE (Nuevo Usuario) ---
   abrirModalCreacion() {
     this.activeDialogRef = this.dialog.open(this.createLoanDialog, {
       width: '500px',
@@ -162,16 +156,12 @@ export class LoanTableComponent implements OnInit {
 
   guardarNuevoEquipo() {
     if (this.loanForm.invalid) return;
-
     const formData = this.loanForm.value;
-    const payloadParaBackend = { ...formData }; // ID null
-
+    const payloadParaBackend = { ...formData };
     console.log('🚀 CREATE: Enviando al backend:', payloadParaBackend);
 
     this.loanService.addLoan(payloadParaBackend).subscribe({
       next: (usuarioCreado) => {
-        // Ag-Grid: Agregar la fila visualmente con los datos reales del back
-        //this.gridApi.applyTransaction({ add: [usuarioCreado] });
         this.gridApi.applyTransaction({ add: [usuarioCreado] });
         this.activeDialogRef?.close();
       },
@@ -179,23 +169,56 @@ export class LoanTableComponent implements OnInit {
     });
 
     this.activeDialogRef?.close();
-    // ---------------------------------------------------
+
   }
 
-  // --- DELETE (Eliminar Usuario) ---
+  public getRowId = (params: GetRowIdParams) => {
+    return params.data.id;
+  };
+
+  confirmarDevolucion(loan: Loan) {
+    this.selectedLoan = loan;
+    this.activeDialogRef = this.dialog.open(this.returnConfirmDialog, {
+      width: '400px'
+    });
+  }
+
   confirmarEliminacion(loan: Loan) {
     this.selectedLoan = loan;
-    // Abrimos el template de confirmación
     this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, {
       width: '400px'
     });
   }
 
+  procederDevolucion() {
+    const currentLoan = this.selectedLoan;
+    if (!currentLoan) return;
+    this.loanService.returnLoan(currentLoan.id).subscribe({
+      next: () => {
+        const rowToUpdate = {
+          ...currentLoan,
+          loanStatus: LoanStatusEnum.DEVUELTO
+        };
+
+        this.gridApi.applyTransaction({ update: [rowToUpdate] });
+
+        this.activeDialogRef?.close();
+        this.selectedLoan = null;
+        this.snackBar.open('Equipo Devuelto', 'Cerrar', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      },
+
+      error: (err) => {
+        console.error('Error eliminando', err);
+      }
+    });
+  }
+
   procederEliminacion() {
     if (!this.selectedLoan) return;
-
     console.log('🗑️ DELETE: Eliminando ID:', this.selectedLoan.id);
-
     this.loanService.deleteLoan(this.selectedLoan.id).subscribe({
       next: () => {
         this.gridApi.applyTransaction({ remove: [this.selectedLoan!] });
@@ -204,10 +227,8 @@ export class LoanTableComponent implements OnInit {
       },
       error: (err) => console.error('Error eliminando', err)
     });
-
     this.activeDialogRef?.close();
     this.selectedLoan = null;
-    // ------------------
   }
 
   cerrarDialogo() {
