@@ -7,9 +7,9 @@ export interface AppSettings {
 }
 
 export const appSettings: AppSettings = {
-  title: import.meta.env.NG_APP_TITLE,
-  version: import.meta.env.NG_APP_VERSION,
-  apiUrl: import.meta.env.NG_APP_API_URL
+  title: import.meta.env.NG_APP_TITLE || 'GreenTrack',
+  version: import.meta.env.NG_APP_VERSION || '1.0',
+  apiUrl: import.meta.env.NG_APP_API_URL || 'http://localhost:8080/api/v1'
 };
 
 export const APP_SETTINGS = new InjectionToken<AppSettings>('app.settings', {
