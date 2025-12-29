@@ -1,9 +1,9 @@
 export interface Device {
   id: string;
   name: string;
-  deviceType: DeviceTypeEnum;
+  type: DeviceTypeEnum;
   brand: string;
-  deviceStatus: DeviceStatusEnum;
+  status: DeviceStatusEnum;
 }
 
 export enum DeviceTypeEnum {

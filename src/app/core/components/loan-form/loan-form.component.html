@@ -6,6 +6,17 @@
     <mat-step [stepControl]="userFormGroup">
       <ng-template matStepLabel>Seleccionar Empleado</ng-template>
 
+      <div class="search-container" style="margin: 15px 0;">
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Buscar Usuario (Nombre, ID, Email...)</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [formControl]="userSearchControl" placeholder="Escribe para filtrar...">
+          <button *ngIf="userSearchControl.value" matSuffix mat-icon-button (click)="userSearchControl.setValue('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+
       <div class="grid-wrapper">
         <p class="instruction-text">Seleccione el empleado que recibe el equipo:</p>
 
@@ -36,6 +47,17 @@
 
     <mat-step [stepControl]="deviceFormGroup">
       <ng-template matStepLabel>Seleccionar Equipo</ng-template>
+
+      <div class="search-container" style="margin: 15px 0;">
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Buscar Equipo (Nombre, Marca, Serie...)</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [formControl]="deviceSearchControl" placeholder="Escribe para filtrar...">
+          <button *ngIf="deviceSearchControl.value" matSuffix mat-icon-button (click)="deviceSearchControl.setValue('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
 
       <div class="grid-wrapper">
         <p class="instruction-text">Seleccione el equipo a prestar:</p>

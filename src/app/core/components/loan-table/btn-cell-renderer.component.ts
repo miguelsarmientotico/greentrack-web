@@ -5,7 +5,6 @@ import { LoanStatusEnum } from '../../models/Loan';
 
 @Component({
   selector: 'app-btn-cell-renderer',
-  standalone: true,
   template: `
     @if (showReturnButton) {
       <button

@@ -5,11 +5,58 @@
       <mat-icon>add</mat-icon> Nuevo Equipo
     </button>
   </div>
+  <form [formGroup]="filterForm" class="filters-container">
 
+    <div class="row-global">
+      <mat-form-field appearance="outline" class="full-width-search" subscriptSizing="dynamic">
+        <mat-label>Búsqueda Global (ID, Nombre, Marca...)</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput formControlName="globalSearch" placeholder="Escribe para buscar en todo...">
+        <button *ngIf="filterForm.get('globalSearch')?.value" matSuffix mat-icon-button (click)="filterForm.get('globalSearch')?.setValue('')">
+            <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <div class="row-specifics">
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Marca</mat-label>
+        <input matInput formControlName="brand">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Tipo</mat-label>
+        <mat-select formControlName="type">
+          <mat-option [value]="null">-- Todos --</mat-option>
+          <mat-option *ngFor="let type of deviceTypeList" [value]="type">{{ type }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="status">
+          <mat-option [value]="null">-- Todos --</mat-option>
+          <mat-option *ngFor="let status of deviceStatusList" [value]="status">{{ status }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button color="warn" (click)="clearFilters()" class="reset-btn">
+        <mat-icon>filter_alt_off</mat-icon> Limpiar
+      </button>
+
+    </div>
+
+  </form>
   <ag-grid-angular
     style="width: 100%; height: 500px; margin-top: 15px;"
     class="ag-theme-quartz"
-    [rowData]="rowData"
+    [rowData]="rowData$ | async"
     [columnDefs]="colDefs"
     [defaultColDef]="defaultColDef"
     (gridReady)="onGridReady($event)"
@@ -18,7 +65,7 @@
   >
   </ag-grid-angular>
   <mat-paginator
-    [length]="totalDevices"
+    [length]="totalPages$ | async"
     [pageSize]="pageSize"
     [pageSizeOptions]="[5, 10, 25, 100]"
     [showFirstLastButtons]="true"
@@ -40,7 +87,7 @@
 
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Tipo de Equipo</mat-label>
-        <mat-select formControlName="deviceType">
+        <mat-select formControlName="type">
           <mat-option *ngFor="let r of deviceTypeList" [value]="r">{{ r }}</mat-option>
         </mat-select>
       </mat-form-field>

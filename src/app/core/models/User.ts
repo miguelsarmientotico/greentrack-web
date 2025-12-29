@@ -6,6 +6,6 @@ export interface User {
   password?: string;
   fullName: string;
   email: string;
-  userStatus: string;
+  status: string;
   role: RoleEnum;
 }

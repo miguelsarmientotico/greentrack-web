@@ -13,7 +13,6 @@ import { DashboardSummary } from '../../models/Dashboard';
   selector: 'the-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
-  standalone: true,
   imports: [
     MatGridListModule,
     MatMenuModule,

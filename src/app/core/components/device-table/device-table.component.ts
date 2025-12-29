@@ -1,24 +1,27 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, TemplateRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
-import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
-import { BtnCellRenderer } from './btn-cell-renderer.component';
-import { Device, DeviceStatusEnum, DeviceTypeEnum } from '../../models/Device';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
-import { DeviceService } from '../../services/device.service';
-import { Subscription } from 'rxjs';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { Pagination } from '../../models/Pagination';
+
+// AG Grid
+import { AgGridAngular } from 'ag-grid-angular';
+import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
+
+// Custom
+import { BtnCellRenderer } from './btn-cell-renderer.component';
+import { DeviceService } from '../../services/device.service';
+import { Device, DeviceStatusEnum, DeviceTypeEnum } from '../../models/Device';
+import { DeviceFilter } from '../../models/device-filter.model';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-device-table',
-  standalone: true,
   imports: [
     CommonModule,
     AgGridAngular,
@@ -34,32 +37,43 @@ import { Pagination } from '../../models/Pagination';
   templateUrl: './device-table.component.html',
   styleUrls: ['./device-table.component.scss']
 })
-export class DeviceTableComponent implements OnInit {
+export class DeviceTableComponent implements OnInit, OnDestroy {
 
+  // ==========================================================
+  // 1. VIEW CHILDREN & DIALOGS
+  // ==========================================================
   @ViewChild('createDeviceDialog') createDeviceDialog!: TemplateRef<any>;
   @ViewChild('deleteConfirmDialog') deleteConfirmDialog!: TemplateRef<any>;
 
-  totalDevices = 0;
-  pageSize = 10;
-  currentPage = 1;
-
-  private gridApi!: GridApi<Device>;
-
-  deviceForm!: FormGroup;
-
-  selectedDevice: Device | null = null;
-  deviceTypeList = Object.values(DeviceTypeEnum);
-
   private activeDialogRef?: MatDialogRef<any>;
 
-  rowData: Device[] = [];
+  // ==========================================================
+  // 2. DEPENDENCIES
+  // ==========================================================
+  private readonly deviceService = inject(DeviceService);
+  private readonly fb = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
 
-  colDefs: ColDef[] = [
+  // ==========================================================
+  // 3. AG GRID CONFIGURATION
+  // ==========================================================
+  private gridApi!: GridApi<Device>;
+
+  public defaultColDef: ColDef = {
+    sortable: true,
+    filter: true,
+    resizable: true
+  };
+
+  // Callback para optimizar el renderizado de filas por ID
+  public getRowId = (params: GetRowIdParams) => params.data.id;
+
+  public colDefs: ColDef[] = [
     { field: 'id', hide: true },
     { field: 'name', headerName: 'Nombre', editable: true, flex: 1 },
     {
-      field: 'deviceType',
-      headerName: 'Tipo de Equipo',
+      field: 'type',
+      headerName: 'Tipo',
       editable: true,
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: { values: Object.values(DeviceTypeEnum) },
@@ -67,7 +81,7 @@ export class DeviceTableComponent implements OnInit {
     },
     { field: 'brand', headerName: 'Marca', editable: true, flex: 1.5 },
     {
-      field: 'deviceStatus',
+      field: 'status',
       headerName: 'Estado',
       editable: true,
       cellEditor: 'agSelectCellEditor',
@@ -78,77 +92,94 @@ export class DeviceTableComponent implements OnInit {
       headerName: 'Acciones',
       cellRenderer: BtnCellRenderer,
       width: 140,
-      cellRendererParams: {
-        onDeleteClicked: (device: Device) => this.confirmarEliminacion(device),
-      },
       pinned: 'right',
       filter: false,
-      sortable: false
+      sortable: false,
+      cellRendererParams: {
+        // Usamos arrow function para mantener el contexto 'this'
+        onDeleteClicked: (device: Device) => this.confirmarEliminacion(device),
+      }
     }
   ];
 
-  defaultColDef: ColDef = {
-    sortable: true,
-    filter: true,
-    resizable: true
-  };
+  // ==========================================================
+  // 4. COMPONENT STATE (Reactive)
+  // ==========================================================
+  // Datos directos del Store del servicio
+  public rowData$ = this.deviceService.devices$;
+  public totalDevices$ = this.deviceService.totalDevices$; // Necesario para el paginador
+  public totalPages$ = this.deviceService.totalPages$; // Necesario para el paginador
 
-  private getDevicesSubscription: Subscription | undefined;
+  public filter: DeviceFilter = { globalSearch: '' };
+  public pageSize = 10;
+  public currentPage = 1; // 1-based para lógica visual, 0-based para API
 
-  constructor(
-    private deviceService: DeviceService,
-    private fb: FormBuilder,
-    private dialog: MatDialog
-  ) {}
+  // ==========================================================
+  // 5. FORM STATE
+  // ==========================================================
+  public deviceForm!: FormGroup;
+  public filterForm!: FormGroup;
+  public selectedDevice: Device | null = null;
+  public readonly deviceTypeList = Object.values(DeviceTypeEnum);
+  public readonly deviceStatusList = Object.values(DeviceStatusEnum);
 
+
+  // ==========================================================
+  // 6. LIFECYCLE HOOKS
+  // ==========================================================
   ngOnInit(): void {
-    this.loadElements();
-    this.deviceForm = this.fb.group({
-      name: ['', Validators.required],
-      deviceType: [DeviceTypeEnum.LAPTOP, Validators.required],
-      brand: ['', Validators.required],
-    });
+    this.initForm();
+    this.initFilterForm();
+    this.loadData();
   }
 
-  loadElements(): void {
-    this.getDevicesSubscription = this.deviceService.getDevices(this.currentPage, this.pageSize).subscribe({
-      next: (res: Pagination<Device>) => {
-        this.rowData = res.content;
-        this.totalDevices = res.totalElements;
-      },
-      error: (error) => {
-      }
-    });
+  ngOnDestroy(): void {
+    // Si tienes suscripciones manuales extras, agrégalas aquí.
+    // rowData$ y totalDevices$ se limpian solos gracias al AsyncPipe en HTML.
   }
+
+  // ==========================================================
+  // 7. GRID EVENTS (Grid Ready, Page Change, Edit)
+  // ==========================================================
 
   onGridReady(params: GridReadyEvent<Device>) {
     this.gridApi = params.api;
   }
 
-  ngOnDestroy(): void {
-    if (this.getDevicesSubscription) {
-      this.getDevicesSubscription.unsubscribe();
-    }
+  onPageChange(event: PageEvent) {
+    this.currentPage = event.pageIndex + 1;
+    this.pageSize = event.pageSize;
+    this.loadData();
   }
 
   onCellValueChanged(event: CellValueChangedEvent) {
     const id = event.data.id;
     const campoEditado = event.colDef.field;
     const nuevoValor = event.newValue;
-    if (!campoEditado) return;
+
+    // Validación básica para no enviar basura
+    if (!campoEditado || event.oldValue === nuevoValor) return;
+
     const cambios: Partial<Device> = {
       [campoEditado]: nuevoValor
     };
 
     this.deviceService.updateDevice(id, cambios).subscribe({
-      next: (res) => console.log('Actualizado OK'),
-      error: (err) => {
-        console.error('Error al actualizar', err);
-      }
+        error: () => {
+             // Opcional: Revertir cambio en celda si falla API
+             // this.gridApi.undoCellEditing();
+        }
     });
   }
 
+  // ==========================================================
+  // 8. DIALOG ACTIONS (Open, Save, Delete, Close)
+  // ==========================================================
+
   abrirModalCreacion() {
+    this.deviceForm.reset({
+        deviceType: DeviceTypeEnum.LAPTOP // Valor por defecto
+    });
     this.activeDialogRef = this.dialog.open(this.createDeviceDialog, {
       width: '500px',
       disableClose: true
@@ -157,19 +188,19 @@ export class DeviceTableComponent implements OnInit {
 
   guardarNuevoEquipo() {
     if (this.deviceForm.invalid) return;
+
     const formData = this.deviceForm.value;
-    const payloadParaBackend = { ...formData };
-    console.log('🚀 CREATE: Enviando al backend:', payloadParaBackend);
-    this.deviceService.addDevice(payloadParaBackend).subscribe({
-      next: (usuarioCreado) => {
-        this.gridApi.applyTransaction({ add: [usuarioCreado] });
-        this.activeDialogRef?.close();
+    console.log('🚀 CREATE: Enviando al backend:', formData);
+
+    this.deviceService.addDevice(formData).subscribe({
+      next: () => {
+        // NOTA: No usamos applyTransaction. Recargamos datos para ver
+        // el nuevo ítem en la posición correcta según ordenamiento del backend.
+        this.loadData();
+        this.cerrarDialogo();
       },
-      error: (err) => console.error('Error creando usuario', err)
+      error: (err) => console.error('Error creando equipo', err)
     });
-
-    this.activeDialogRef?.close();
-
   }
 
   confirmarEliminacion(device: Device) {
@@ -179,20 +210,16 @@ export class DeviceTableComponent implements OnInit {
     });
   }
 
-  public getRowId = (params: GetRowIdParams) => {
-    return params.data.id;
-  };
-
-
   procederEliminacion() {
     const deviceToDelete = this.selectedDevice;
     if (!deviceToDelete) return;
+
     console.log('🗑️ DELETE: Eliminando ID:', deviceToDelete.id);
+
     this.deviceService.deleteDevice(deviceToDelete.id).subscribe({
       next: () => {
-        this.gridApi.applyTransaction({ remove: [deviceToDelete] });
-        this.activeDialogRef?.close();
-        this.selectedDevice = null;
+        // El servicio ya actualizó el State local, el Grid se refresca solo.
+        this.cerrarDialogo();
       },
       error: (err) => console.error('Error eliminando', err)
     });
@@ -203,9 +230,50 @@ export class DeviceTableComponent implements OnInit {
     this.selectedDevice = null;
   }
 
-  onPageChange(event: PageEvent) {
-    this.currentPage = event.pageIndex + 1;
-    this.pageSize = event.pageSize;
-    this.loadElements();
+  // ==========================================================
+  // 9. PRIVATE HELPERS
+  // ==========================================================
+
+  private initForm(): void {
+    this.deviceForm = this.fb.group({
+      name: ['', Validators.required],
+      type: [DeviceTypeEnum.LAPTOP, Validators.required],
+      brand: ['', Validators.required],
+    });
+  }
+
+  private initFilterForm(): void {
+    this.filterForm = this.fb.group({
+      globalSearch: [''],
+      name: [''],
+      brand: [''],
+      type: [null],
+      status: [null]
+    });
+
+    this.filterForm.valueChanges.pipe(
+      debounceTime(500),
+      distinctUntilChanged()
+    ).subscribe(values => {
+      this.filter = {
+        ...values,
+        type: values.type || undefined,
+        status: values.status || undefined
+      };
+
+      this.currentPage = 1; // IMPORTANTE: Volver a página 1 al filtrar
+      this.loadData();
+    });
+  }
+
+  public clearFilters(): void {
+    this.filterForm.reset();
+  }
+
+  private loadData(): void {
+    // API usa paginación base 0, Angular Material base 0, pero visualmente...
+    // Mantenemos consistencia: PageIndex viene del Paginator (0-based)
+    this.deviceService.getDevices(this.filter, this.currentPage - 1, this.pageSize)
+        .subscribe(); // La respuesta actualiza el BehaviorSubject en el servicio
   }
 }

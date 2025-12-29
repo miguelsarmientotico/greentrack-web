@@ -1,15 +1,57 @@
 <div class="container">
+
   <div class="options-bar">
-    <h2>Gestión de Equipos</h2>
+    <h2>Gestión de Préstamos</h2>
     <button mat-raised-button color="primary" routerLink="new">
-      <mat-icon>add</mat-icon> Nuevo Equipo
+      <mat-icon>add</mat-icon> Nuevo Préstamo
     </button>
   </div>
 
+  <form [formGroup]="filterForm" class="filters-container">
+
+    <div class="row-global">
+      <mat-form-field appearance="outline" class="full-width-search" subscriptSizing="dynamic">
+        <mat-label>Búsqueda Global (Empleado, Equipo, ID...)</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput formControlName="globalSearch" placeholder="Buscar...">
+        <button *ngIf="filterForm.get('globalSearch')?.value" matSuffix mat-icon-button (click)="filterForm.get('globalSearch')?.setValue('')">
+            <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <div class="row-specifics">
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Empleado (Nombre)</mat-label>
+        <input matInput formControlName="employeeFullName">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Equipo (Nombre)</mat-label>
+        <input matInput formControlName="deviceName">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="status">
+          <mat-option [value]="null">-- Todos --</mat-option>
+          <mat-option *ngFor="let status of loanStatusList" [value]="status">{{ status }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button color="warn" (click)="clearFilters()" class="reset-btn">
+        <mat-icon>filter_alt_off</mat-icon> Limpiar
+      </button>
+
+    </div>
+
+  </form>
+
   <ag-grid-angular
-    style="width: 100%; height: 500px; margin-top: 15px;"
+    style="width: 100%; height: 500px;"
     class="ag-theme-quartz"
-    [rowData]="rowData"
+    [rowData]="loans$ | async"
     [columnDefs]="colDefs"
     [defaultColDef]="defaultColDef"
     (gridReady)="onGridReady($event)"
@@ -17,31 +59,33 @@
     [getRowId]="getRowId"
   >
   </ag-grid-angular>
+
   <mat-paginator
-    [length]="totalLoans"
+    [length]="totalLoans$ | async"
     [pageSize]="pageSize"
     [pageSizeOptions]="[5, 10, 25, 100]"
     [showFirstLastButtons]="true"
     (page)="onPageChange($event)"
     aria-label="Seleccionar página">
   </mat-paginator>
+
 </div>
 
 <ng-template #createLoanDialog>
-  <h2 mat-dialog-title>Crear Nuevo Equipo</h2>
+  <h2 mat-dialog-title>Registrar Nuevo Préstamo</h2>
   <mat-dialog-content>
     <form [formGroup]="loanForm" class="dialog-form">
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Nombre</mat-label>
-        <input matInput formControlName="name">
-        <mat-error *ngIf="loanForm.get('name')?.hasError('required')">Requerido</mat-error>
+        <mat-label>ID Empleado</mat-label>
+        <input matInput formControlName="employeeId" placeholder="UUID del empleado">
+        <mat-error *ngIf="loanForm.get('employeeId')?.hasError('required')">Requerido</mat-error>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Marca</mat-label>
-        <input matInput formControlName="brand">
-        <mat-error *ngIf="loanForm.get('brand')?.hasError('required')">Requerido</mat-error>
+        <mat-label>ID Equipo</mat-label>
+        <input matInput formControlName="deviceId" placeholder="UUID del equipo">
+        <mat-error *ngIf="loanForm.get('deviceId')?.hasError('required')">Requerido</mat-error>
       </mat-form-field>
 
     </form>
@@ -49,7 +93,7 @@
 
   <mat-dialog-actions align="end">
     <button mat-button (click)="cerrarDialogo()">Cancelar</button>
-    <button mat-raised-button color="primary" [disabled]="loanForm.invalid" (click)="guardarNuevoEquipo()">
+    <button mat-raised-button color="primary" [disabled]="loanForm.invalid" (click)="guardarNuevoPrestamo()">
       Guardar
     </button>
   </mat-dialog-actions>
@@ -58,21 +102,22 @@
 <ng-template #returnConfirmDialog>
   <h2 mat-dialog-title>Devolver Equipo</h2>
   <mat-dialog-content>
-    <p>¿Estás seguro que deseas eliminar el prestamo ?</p>
-    <p class="warning-text">Esta acción no se puede deshacer.</p>
+    <p>¿Confirmar la devolución del equipo <strong>{{ selectedLoan?.device?.name }}</strong>?</p>
+    <p>Prestado a: {{ selectedLoan?.employee?.fullName }}</p>
   </mat-dialog-content>
   <mat-dialog-actions align="end">
     <button mat-button (click)="cerrarDialogo()">Cancelar</button>
-    <button mat-raised-button color="warn" (click)="procederDevolucion()">
-      Sí, Devolver
+    <button mat-raised-button color="accent" (click)="procederDevolucion()">
+      Confirmar Devolución
     </button>
   </mat-dialog-actions>
 </ng-template>
+
 <ng-template #deleteConfirmDialog>
-  <h2 mat-dialog-title>Eliminar Usuario</h2>
+  <h2 mat-dialog-title>Eliminar Registro de Préstamo</h2>
   <mat-dialog-content>
-    <p>¿Estás seguro que deseas eliminar el prestamo ?</p>
-    <p class="warning-text">Esta acción no se puede deshacer.</p>
+    <p>¿Estás seguro que deseas eliminar este registro?</p>
+    <p class="warning-text">Esta acción borrará el historial del préstamo permanentemente.</p>
   </mat-dialog-content>
   <mat-dialog-actions align="end">
     <button mat-button (click)="cerrarDialogo()">Cancelar</button>

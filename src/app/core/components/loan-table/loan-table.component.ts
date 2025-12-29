@@ -1,244 +1,275 @@
-import { Component, OnInit, ViewChild, TemplateRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
+import { Component, OnInit, OnDestroy, ViewChild, TemplateRef, inject } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
-import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
-import { BtnCellRenderer } from './btn-cell-renderer.component';
-
-import { Loan, LoanStatusEnum } from '../../models/Loan';
-
+// Material
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
-import { LoanService } from '../../services/loan.service';
-import { Subscription } from 'rxjs';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { Pagination } from '../../models/Pagination';
-import { RouterModule } from '@angular/router';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+
+// AG Grid
+import { AgGridAngular } from 'ag-grid-angular';
+import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
+
+// Custom
+import { BtnCellRenderer } from './btn-cell-renderer.component'; // Asegúrate de que este renderer tenga el botón de devolver y eliminar
+import { LoanService } from '../../services/loan.service';
+import { Loan, LoanStatusEnum } from '../../models/Loan';
+import { LoanFilter } from '../../models/loan-filter.model';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-loan-table',
-  standalone: true,
   imports: [
-    CommonModule,
-    AgGridAngular,
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatPaginatorModule,
-    RouterModule,
-    MatSnackBarModule
+    CommonModule, AgGridAngular, ReactiveFormsModule,
+    MatDialogModule, MatButtonModule, MatFormFieldModule,
+    MatInputModule, MatSelectModule, MatIconModule, MatPaginatorModule,
+    MatSnackBarModule,
+    RouterModule
   ],
+  providers: [DatePipe],
   templateUrl: './loan-table.component.html',
-  styleUrls: ['./loan-table.component.scss']
+  styleUrls: ['./loan-table.component.scss'] // Usar mismos estilos que Device/User
 })
-export class LoanTableComponent implements OnInit {
+export class LoanTableComponent implements OnInit, OnDestroy {
 
-  snackBar = inject(MatSnackBar);
-
+  // =====================================
+  // 1. DIALOGS & DEPENDENCIES
+  // =====================================
   @ViewChild('createLoanDialog') createLoanDialog!: TemplateRef<any>;
-  @ViewChild('deleteConfirmDialog') deleteConfirmDialog!: TemplateRef<any>;
   @ViewChild('returnConfirmDialog') returnConfirmDialog!: TemplateRef<any>;
+  @ViewChild('deleteConfirmDialog') deleteConfirmDialog!: TemplateRef<any>;
 
-  totalLoans = 0;
-  pageSize = 10;
-  currentPage = 1;
-
-  private gridApi!: GridApi<Loan>;
-
-  loanForm!: FormGroup;
-
-  selectedLoan: Loan | null = null;
+  private readonly loanService = inject(LoanService);
+  private readonly fb = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private datePipe = inject(DatePipe);
 
   private activeDialogRef?: MatDialogRef<any>;
 
-  rowData: Loan[] = [];
+  // =====================================
+  // 2. GRID CONFIG
+  // =====================================
+  private gridApi!: GridApi<Loan>;
 
-  colDefs: ColDef[] = [
+  public getRowId = (params: GetRowIdParams) => params.data.id;
+
+  public defaultColDef: ColDef = {
+    sortable: true, filter: true, resizable: true
+  };
+
+  public readonly loanStatusList = Object.values(LoanStatusEnum);
+
+  public colDefs: ColDef[] = [
     { field: 'id', hide: true },
-    { field: 'employee.fullName', headerName: 'Empleado', editable: true, flex: 1 },
-    { field: 'device.name', headerName: 'Equipo', editable: true, flex: 1 },
+    { field: 'employee.fullName', headerName: 'Empleado', flex: 1.5 },
+    { field: 'device.name', headerName: 'Equipo', flex: 1.5 },
     {
-      field: 'loanStatus',
+      field: 'issuedAt',
+      headerName: 'Fecha Inicio',
+      flex: 1,
+      valueFormatter: (params) => {
+        return this.datePipe.transform(params.value, 'dd/MM/yyyy HH:mm') || '';
+      }
+    },
+    {
+      field: 'returnedAt',
+      headerName: 'Fecha Fin',
+      flex: 1,
+      valueFormatter: (params) => {
+        if (!params.value) return '-';
+        return this.datePipe.transform(params.value, 'dd/MM/yyyy HH:mm') || '';
+      }
+    },
+    {
+      field: 'status',
       headerName: 'Estado',
       editable: true,
       cellEditor: 'agSelectCellEditor',
-      cellEditorParams: { values: Object.values(LoanStatusEnum) },
-      width: 120
+      cellEditorParams: { values: this.loanStatusList },
+      width: 130,
+      cellStyle: (params) => {
+        if (params.value === LoanStatusEnum.ACTIVO) {
+          return { color: 'green', fontWeight: 'bold' };
+        }
+        if (params.value === LoanStatusEnum.DEVUELTO) {
+          return { color: 'gray' } as any;
+        }
+        return undefined;
+      }
     },
     {
       headerName: 'Acciones',
       cellRenderer: BtnCellRenderer,
       width: 140,
-      cellRendererParams: {
-        onReturnClicked: (loan: Loan) => this.confirmarDevolucion(loan),
-      },
       pinned: 'right',
-      filter: false,
-      sortable: false
+      filter: false, sortable: false,
+      cellRendererParams: {
+        // Asumiendo que tu renderer tiene estos outputs
+        onReturnClicked: (loan: Loan) => this.confirmarDevolucion(loan),
+        onDeleteClicked: (loan: Loan) => this.confirmarEliminacion(loan)
+      }
     }
   ];
 
-  defaultColDef: ColDef = {
-    sortable: true,
-    filter: true,
-    resizable: true
-  };
+  // =====================================
+  // 3. STATE (Reactive)
+  // =====================================
+  public loans$ = this.loanService.loans$;
+  public totalLoans$ = this.loanService.totalLoans$;
 
-  private getLoansSubscription: Subscription | undefined;
+  public filter: LoanFilter = { globalSearch: '' };
+  public pageSize = 10;
+  public currentPage = 1;
 
-  constructor(
-    private loanService: LoanService,
-    private fb: FormBuilder,
-    private dialog: MatDialog
-  ) {}
+  public selectedLoan: Loan | null = null;
 
+  // =====================================
+  // 4. FORMS
+  // =====================================
+  public loanForm!: FormGroup;   // Crear
+  public filterForm!: FormGroup; // Filtrar
+
+  // =====================================
+  // 5. LIFECYCLE
+  // =====================================
   ngOnInit(): void {
-    this.loadElements();
+    this.initForms();
+    this.initFilterForm();
+    this.loadData();
+  }
+
+  ngOnDestroy(): void {
+    // Clean up handled by AsyncPipe
+  }
+
+  // =====================================
+  // 6. INITIALIZATION
+  // =====================================
+  private initForms(): void {
     this.loanForm = this.fb.group({
       employeeId: ['', Validators.required],
       deviceId: ['', Validators.required],
+      // Puedes agregar issuedAt aquí si quieres permitir fechas retroactivas
     });
   }
 
-  loadElements(): void {
-    this.getLoansSubscription = this.loanService.getLoans(this.currentPage, this.pageSize).subscribe({
-      next: (res: Pagination<Loan>) => {
-        this.rowData = res.content;
-        this.totalLoans = res.totalElements;
-      },
-      error: (error) => {
-      }
+  private initFilterForm(): void {
+    this.filterForm = this.fb.group({
+      globalSearch: [''],
+      employeeFullName: [''],
+      deviceName: [''],
+      status: [null]
+    });
+
+    this.filterForm.valueChanges.pipe(
+      debounceTime(500),
+      distinctUntilChanged()
+    ).subscribe(values => {
+      this.filter = {
+        ...values,
+        status: values.status || undefined
+      };
+      this.currentPage = 1;
+      this.loadData();
     });
   }
 
+  private loadData(): void {
+    this.loanService.getLoans(this.filter, this.currentPage - 1, this.pageSize)
+      .subscribe();
+  }
+
+  // =====================================
+  // 7. EVENTS
+  // =====================================
   onGridReady(params: GridReadyEvent<Loan>) {
     this.gridApi = params.api;
   }
 
-  ngOnDestroy(): void {
-    if (this.getLoansSubscription) {
-      this.getLoansSubscription.unsubscribe();
-    }
+  onPageChange(event: PageEvent) {
+    this.currentPage = event.pageIndex + 1;
+    this.pageSize = event.pageSize;
+    this.loadData();
+  }
+
+  clearFilters() {
+    this.filterForm.reset();
   }
 
   onCellValueChanged(event: CellValueChangedEvent) {
     const id = event.data.id;
     const campoEditado = event.colDef.field;
     const nuevoValor = event.newValue;
-    if (!campoEditado) return;
-    const cambios: Partial<Loan> = {
-      [campoEditado]: nuevoValor
-    };
+
+    if (!campoEditado || event.oldValue === nuevoValor) return;
+
+    const cambios: Partial<Loan> = { [campoEditado]: nuevoValor };
+
     this.loanService.updateLoan(id, cambios).subscribe({
-      next: (res) => console.log('Actualizado OK'),
-      error: (err) => {
-        console.error('Error al actualizar', err);
+      error: () => this.loadData() // Revertir si falla (recargando)
+    });
+  }
+
+  // =====================================
+  // 8. DIALOG LOGIC
+  // =====================================
+
+  // CREAR
+  abrirModalCreacion() {
+    this.loanForm.reset();
+    this.activeDialogRef = this.dialog.open(this.createLoanDialog, { width: '500px', disableClose: true });
+  }
+
+  guardarNuevoPrestamo() {
+    if (this.loanForm.invalid) return;
+    this.loanService.addLoan(this.loanForm.value).subscribe({
+      next: () => {
+        this.loadData();
+        this.cerrarDialogo();
       }
     });
   }
 
-  abrirModalCreacion() {
-    this.activeDialogRef = this.dialog.open(this.createLoanDialog, {
-      width: '500px',
-      disableClose: true
-    });
-  }
-
-  guardarNuevoEquipo() {
-    if (this.loanForm.invalid) return;
-    const formData = this.loanForm.value;
-    const payloadParaBackend = { ...formData };
-    console.log('🚀 CREATE: Enviando al backend:', payloadParaBackend);
-
-    this.loanService.addLoan(payloadParaBackend).subscribe({
-      next: (usuarioCreado) => {
-        this.gridApi.applyTransaction({ add: [usuarioCreado] });
-        this.activeDialogRef?.close();
-      },
-      error: (err) => console.error('Error creando usuario', err)
-    });
-
-    this.activeDialogRef?.close();
-
-  }
-
-  public getRowId = (params: GetRowIdParams) => {
-    return params.data.id;
-  };
-
+  // DEVOLVER
   confirmarDevolucion(loan: Loan) {
+    if (loan.status === LoanStatusEnum.DEVUELTO) {
+        this.snackBar.open('Este equipo ya fue devuelto', 'Cerrar', { duration: 3000 });
+        return;
+    }
     this.selectedLoan = loan;
-    this.activeDialogRef = this.dialog.open(this.returnConfirmDialog, {
-      width: '400px'
-    });
-  }
-
-  confirmarEliminacion(loan: Loan) {
-    this.selectedLoan = loan;
-    this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, {
-      width: '400px'
-    });
+    this.activeDialogRef = this.dialog.open(this.returnConfirmDialog, { width: '400px' });
   }
 
   procederDevolucion() {
-    const currentLoan = this.selectedLoan;
-    if (!currentLoan) return;
-    this.loanService.returnLoan(currentLoan.id).subscribe({
-      next: () => {
-        const rowToUpdate = {
-          ...currentLoan,
-          loanStatus: LoanStatusEnum.DEVUELTO
-        };
-
-        this.gridApi.applyTransaction({ update: [rowToUpdate] });
-
-        this.activeDialogRef?.close();
-        this.selectedLoan = null;
-        this.snackBar.open('Equipo Devuelto', 'Cerrar', {
-          duration: 3000,
-          panelClass: ['success-snackbar']
-        });
-      },
-
-      error: (err) => {
-        console.error('Error eliminando', err);
-      }
+    if (!this.selectedLoan) return;
+    this.loanService.returnLoan(this.selectedLoan.id).subscribe({
+      next: () => this.cerrarDialogo()
     });
+  }
+
+  // ELIMINAR
+  confirmarEliminacion(loan: Loan) {
+    this.selectedLoan = loan;
+    this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, { width: '400px' });
   }
 
   procederEliminacion() {
     if (!this.selectedLoan) return;
-    console.log('🗑️ DELETE: Eliminando ID:', this.selectedLoan.id);
     this.loanService.deleteLoan(this.selectedLoan.id).subscribe({
-      next: () => {
-        this.gridApi.applyTransaction({ remove: [this.selectedLoan!] });
-        this.activeDialogRef?.close();
-        this.selectedLoan = null;
-      },
-      error: (err) => console.error('Error eliminando', err)
+      next: () => this.cerrarDialogo()
     });
-    this.activeDialogRef?.close();
-    this.selectedLoan = null;
   }
 
   cerrarDialogo() {
     this.activeDialogRef?.close();
     this.selectedLoan = null;
-  }
-
-  onPageChange(event: PageEvent) {
-    this.currentPage = event.pageIndex + 1;
-    this.pageSize = event.pageSize;
-    this.loadElements();
   }
 }

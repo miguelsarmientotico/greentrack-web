@@ -12,7 +12,6 @@ import { AuthService } from '../../../core/services/auth.service';
   selector: 'app-login',
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
-  standalone: true,
   imports: [
     MatInputModule,
     MatButtonModule,

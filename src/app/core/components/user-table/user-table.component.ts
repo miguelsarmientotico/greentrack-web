@@ -1,74 +1,75 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, TemplateRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
-import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent } from 'ag-grid-community';
-import { BtnCellRenderer } from './btn-cell-renderer.component';
-
-import { User } from '../../models/User';
-import { RoleEnum } from '../../enum/RoleEnum';
-
+// Material
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
-import { UserService } from '../../services/user.service';
-import { Subscription } from 'rxjs';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { Pagination } from '../../models/Pagination';
+
+// AG Grid
+import { AgGridAngular } from 'ag-grid-angular';
+import { ColDef, GridApi, GridReadyEvent, CellValueChangedEvent, GetRowIdParams } from 'ag-grid-community';
+
+// Custom
+import { BtnCellRenderer } from './btn-cell-renderer.component';
+import { UserService } from '../../services/user.service';
+import { User } from '../../models/User';
+import { UserFilter } from '../../models/user-filter.model';
+import { RoleEnum } from '../../enum/RoleEnum';
+import { UserStatusEnum } from '../../enum/UserStatusEnum';
 
 @Component({
   selector: 'app-user-table',
-  standalone: true,
   imports: [
-    CommonModule,
-    AgGridAngular,
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatPaginatorModule
+    CommonModule, AgGridAngular, ReactiveFormsModule,
+    MatDialogModule, MatButtonModule, MatFormFieldModule,
+    MatInputModule, MatSelectModule, MatIconModule, MatPaginatorModule
   ],
   templateUrl: './user-table.component.html',
-  styleUrls: ['./user-table.component.scss']
+  styleUrls: ['./user-table.component.scss'] // Usamos el mismo SCSS
 })
-export class UserTableComponent implements OnInit {
+export class UserTableComponent implements OnInit, OnDestroy {
 
+  // =====================================
+  // 1. DIALOGS & DEPENDENCIES
+  // =====================================
   @ViewChild('createUserDialog') createUserDialog!: TemplateRef<any>;
   @ViewChild('deleteConfirmDialog') deleteConfirmDialog!: TemplateRef<any>;
   @ViewChild('resetPassDialog') resetPassDialog!: TemplateRef<any>;
 
-  totalUsers = 0;
-  pageSize = 10;
-  currentPage = 1;
-
-  private gridApi!: GridApi<User>;
-
-  userForm!: FormGroup;
-  resetPassForm!: FormGroup;
-
-  selectedUser: User | null = null;
-
-  rolesList = Object.values(RoleEnum);
-  statusList = ['ACTIVO', 'INACTIVO'];
-
+  private readonly userService = inject(UserService);
+  private readonly fb = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
   private activeDialogRef?: MatDialogRef<any>;
 
-  rowData: User[] = [];
+  // =====================================
+  // 2. GRID CONFIG
+  // =====================================
+  private gridApi!: GridApi<User>;
 
-  colDefs: ColDef[] = [
+  public getRowId = (params: GetRowIdParams) => params.data.id;
+
+  public defaultColDef: ColDef = {
+    sortable: true, filter: true, resizable: true
+  };
+
+  // Listas para Selects
+  public readonly rolesList = Object.values(RoleEnum);
+  public readonly statusList = Object.values(UserStatusEnum);
+
+  public colDefs: ColDef[] = [
     { field: 'id', hide: true },
     { field: 'username', headerName: 'Usuario', editable: false, flex: 1 },
     { field: 'fullName', headerName: 'Nombre Completo', editable: true, flex: 1.5 },
     { field: 'email', headerName: 'Email', editable: true, flex: 1.5 },
     {
-      field: 'userStatus',
+      field: 'status', // Asegúrate de que el campo en BD sea 'status' o 'userStatus'
       headerName: 'Estado',
       editable: true,
       cellEditor: 'agSelectCellEditor',
@@ -87,33 +88,53 @@ export class UserTableComponent implements OnInit {
       headerName: 'Acciones',
       cellRenderer: BtnCellRenderer,
       width: 140,
+      pinned: 'right',
+      filter: false, sortable: false,
       cellRendererParams: {
         onDeleteClicked: (user: User) => this.confirmarEliminacion(user),
         onResetClicked: (user: User) => this.abrirModalResetPassword(user)
-      },
-      pinned: 'right',
-      filter: false,
-      sortable: false
+      }
     }
   ];
 
-  defaultColDef: ColDef = {
-    sortable: true,
-    filter: true,
-    resizable: true
-  };
+  // =====================================
+  // 3. STATE (Reactive)
+  // =====================================
+  // Observables directos del servicio
+  public users$ = this.userService.users$;
+  public totalUsers$ = this.userService.totalUsers$;
 
-  private getUsersSubscription: Subscription | undefined;
+  public filter: UserFilter = { globalSearch: '' };
+  public pageSize = 10;
+  public currentPage = 1;
 
-  constructor(
-    private userService: UserService,
-    private fb: FormBuilder,
-    private dialog: MatDialog
-  ) {}
+  public selectedUser: User | null = null;
 
+  // =====================================
+  // 4. FORMS
+  // =====================================
+  public userForm!: FormGroup;      // Para crear
+  public resetPassForm!: FormGroup; // Para cambiar pass
+  public filterForm!: FormGroup;    // Para filtrar
+
+  // =====================================
+  // 5. LIFECYCLE
+  // =====================================
   ngOnInit(): void {
-    this.loadElements();
+    this.initForms();
+    this.initFilterForm(); // Iniciar filtros
+    this.loadData();
+  }
 
+  ngOnDestroy(): void {
+    // Las suscripciones async pipe se limpian solas
+  }
+
+  // =====================================
+  // 6. INITIALIZATION
+  // =====================================
+  private initForms(): void {
+    // Formulario de Creación
     this.userForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(6)]],
@@ -122,146 +143,125 @@ export class UserTableComponent implements OnInit {
       role: [RoleEnum.USER, Validators.required],
     });
 
+    // Formulario de Reset Password
     this.resetPassForm = this.fb.group({
       newPassword: ['', [Validators.required, Validators.minLength(6)]]
     });
   }
 
-  loadElements(): void {
-    this.getUsersSubscription = this.userService.getUsers(this.currentPage, this.pageSize).subscribe({
-      next: (res: Pagination<User>) => {
-        this.rowData = res.content;
-        this.totalUsers = res.totalElements;
-      },
-      error: (error) => {
-      }
+  private initFilterForm(): void {
+    this.filterForm = this.fb.group({
+      globalSearch: [''],
+      username: [''],
+      fullName: [''],
+      email: [''],
+      role: [null],
+      status: [null]
+    });
+
+    // Suscripción a cambios en filtros
+    this.filterForm.valueChanges.pipe(
+      debounceTime(500),
+      distinctUntilChanged()
+    ).subscribe(values => {
+      this.filter = {
+        ...values,
+        role: values.role || undefined,
+        status: values.status || undefined
+      };
+      this.currentPage = 1; // Reset a pág 1
+      this.loadData();
     });
   }
+
+  private loadData(): void {
+    this.userService.getUsers(this.filter, this.currentPage - 1, this.pageSize)
+      .subscribe();
+  }
+
+  // =====================================
+  // 7. EVENTS
+  // =====================================
 
   onGridReady(params: GridReadyEvent<User>) {
     this.gridApi = params.api;
   }
 
-  ngOnDestroy(): void {
-    if (this.getUsersSubscription) {
-      this.getUsersSubscription.unsubscribe();
-    }
+  onPageChange(event: PageEvent) {
+    this.currentPage = event.pageIndex + 1;
+    this.pageSize = event.pageSize;
+    this.loadData();
+  }
+
+  clearFilters() {
+    this.filterForm.reset();
   }
 
   onCellValueChanged(event: CellValueChangedEvent) {
     const id = event.data.id;
-
     const campoEditado = event.colDef.field;
     const nuevoValor = event.newValue;
 
-    if (!campoEditado) return;
+    if (!campoEditado || event.oldValue === nuevoValor) return;
 
-    const cambios: Partial<User> = {
-      [campoEditado]: nuevoValor
-    };
+    const cambios: Partial<User> = { [campoEditado]: nuevoValor };
 
     this.userService.updateUser(id, cambios).subscribe({
-      next: (res) => console.log('Actualizado OK'),
-      error: (err) => {
-        console.error('Error al actualizar', err);
-
-      }
+        error: () => { /* Manejar error si necesario */ }
     });
   }
 
+  // =====================================
+  // 8. DIALOG LOGIC
+  // =====================================
+
+  // CREAR
   abrirModalCreacion() {
-    this.activeDialogRef = this.dialog.open(this.createUserDialog, {
-      width: '500px',
-      disableClose: true
-    });
+    this.userForm.reset({ role: RoleEnum.USER });
+    this.activeDialogRef = this.dialog.open(this.createUserDialog, { width: '500px', disableClose: true });
   }
 
   guardarNuevoUsuario() {
     if (this.userForm.invalid) return;
-
-    const formData = this.userForm.value;
-    const payloadParaBackend = { ...formData };
-
-    console.log('🚀 CREATE: Enviando al backend:', payloadParaBackend);
-
-    this.userService.addUser(payloadParaBackend).subscribe({
-      next: (usuarioCreado) => {
-
-        this.gridApi.applyTransaction({ add: [usuarioCreado] });
-        this.activeDialogRef?.close();
-      },
-      error: (err) => console.error('Error creando usuario', err)
+    this.userService.addUser(this.userForm.value).subscribe({
+      next: () => {
+        this.loadData(); // Recargar para ver el nuevo orden
+        this.cerrarDialogo();
+      }
     });
-
-    this.activeDialogRef?.close();
-
   }
 
+  // ELIMINAR
   confirmarEliminacion(user: User) {
     this.selectedUser = user;
-
-    this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, {
-      width: '400px'
-    });
+    this.activeDialogRef = this.dialog.open(this.deleteConfirmDialog, { width: '400px' });
   }
 
   procederEliminacion() {
     if (!this.selectedUser) return;
-
-    console.log('🗑️ DELETE: Eliminando ID:', this.selectedUser.id);
-
     this.userService.deleteUser(this.selectedUser.id).subscribe({
-      next: () => {
-        this.gridApi.applyTransaction({ remove: [this.selectedUser!] });
-        this.activeDialogRef?.close();
-        this.selectedUser = null;
-        this.activeDialogRef?.close();
-        this.selectedUser = null;
-      },
-      error: (err) => console.error('Error eliminando', err)
+      next: () => this.cerrarDialogo()
     });
-
-
   }
 
+  // RESET PASSWORD
   abrirModalResetPassword(user: User) {
     this.selectedUser = user;
     this.resetPassForm.reset();
-
-    this.activeDialogRef = this.dialog.open(this.resetPassDialog, {
-      width: '400px'
-    });
+    this.activeDialogRef = this.dialog.open(this.resetPassDialog, { width: '400px' });
   }
 
   guardarNuevaPassword() {
     if (this.resetPassForm.invalid || !this.selectedUser) return;
-
     const newPass = this.resetPassForm.get('newPassword')?.value;
 
-    console.log(`🔑 RESET PASS: ID ${this.selectedUser.id} -> Nueva pass: ${newPass}`);
-
-    this.userService.updateUser(this.selectedUser.id, {
-      password: newPass
-    }).subscribe({
-        next: (res) => console.log('Actualizado OK'),
-        error: (err) => {
-          console.error('Error al actualizar', err);
-
-        }
-      });
-
-    this.activeDialogRef?.close();
-    this.selectedUser = null;
+    this.userService.updateUser(this.selectedUser.id, { password: newPass }).subscribe({
+      next: () => this.cerrarDialogo()
+    });
   }
 
   cerrarDialogo() {
     this.activeDialogRef?.close();
     this.selectedUser = null;
-  }
-
-  onPageChange(event: PageEvent) {
-    this.currentPage = event.pageIndex + 1;
-    this.pageSize = event.pageSize;
-    this.loadElements();
   }
 }

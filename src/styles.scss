@@ -69,3 +69,36 @@ app-root {
   flex: 1 1 auto;
 }
 
+@mixin snackbar-theme($color) {
+  --mdc-snackbar-container-color: #{$color};
+  --mat-mdc-snack-bar-button-color: #ffffff;
+
+  .mdc-snackbar__label {
+    color: white !important;
+  }
+}
+
+/* 1. Éxito (Verde - Success) */
+.success-snackbar {
+  @include snackbar-theme(#4caf50);
+}
+
+/* 2. Error (Rojo - Error) */
+.error-snackbar {
+  @include snackbar-theme(#f44336);
+}
+
+/* 3. Información (Azul - Info) */
+.info-snackbar {
+  @include snackbar-theme(#2196f3);
+}
+
+/* 4. Advertencia (Naranja - Warning) */
+.warning-snackbar {
+  @include snackbar-theme(#ff9800);
+}
+
+/* 5. (Extra) Default / Neutral */
+.default-snackbar {
+  @include snackbar-theme(#333333);
+}

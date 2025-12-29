@@ -4,7 +4,6 @@ import { ICellRendererParams } from 'ag-grid-community';
 
 @Component({
   selector: 'app-btn-cell-renderer',
-  standalone: true,
   template: `
     <div class="btn-container">
       <button
